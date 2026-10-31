@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Panel Juri - Digital Scoring TGR</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #00d2ff;
+            --bg-color: #f4f7fb;
+            --card-bg: #ffffff;
+            --text-main: #2d3436;
+            --text-sub: #636e72;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --info: #8e44ad;
+            --shadow: 0 10px 20px rgba(0,0,0,0.05);
+            --shadow-hover: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
+
+        /* KUNCI HALAMAN AGAR TIDAK BISA SCROLL & PAS 1 LAYAR */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            padding: 5px;
+            animation: fadeIn 0.3s ease;
+        }
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* =========================================
+           UI SELEKSI JURI (FRAMELESS / TANPA BINGKAI)
+        ========================================= */
+        #screen-selection {
+            background: linear-gradient(135deg, #f4f7fb 0%, #e0e8f0 100%);
+            padding: 15px;
+        }
+        
+        .selection-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .title-select { 
+            font-size: 1.6rem; 
+            font-weight: 900; 
+            color: var(--text-main); 
+            margin-bottom: 2px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .subtitle-select {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .mode-toggle { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 25px; 
+            width: 100%; 
+            max-width: 400px; 
+            background: rgba(255, 255, 255, 0.6);
+            padding: 5px;
+            border-radius: 30px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .btn-mode { 
+            flex: 1; 
+            padding: 10px; 
+            background: transparent; 
+            color: var(--text-sub); 
+            border: none;
+            border-radius: 25px; 
+            font-weight: 700; 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        .btn-mode.active { 
+            background: white; 
+            color: var(--primary-color); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .juri-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 850px; /* Lebar maksimal agar tidak tabrakan */
+            margin: 0 auto;
+        }
+
+        /* Opsi Juri Hanya Gambar dan Teks (Tanpa Frame) */
+        .btn-juri {
+            background: transparent;
+            border: none;
+            padding: 5px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-juri:hover {
+            transform: scale(1.05);
+        }
+        .btn-juri:active { transform: scale(0.95); }
+
+        .btn-juri img {
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 8px;
+            border: 3px solid transparent;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+
+        .btn-juri h3 {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            line-height: 1;
+        }
+
+        /* Badge Status Bulat Kecil */
+        .juri-status {
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            letter-spacing: 0.5px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .juri-status::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        /* State OFFLINE (MERAH) -> KOSONG/BISA DIKLIK */
+        .btn-juri.offline img { border-color: var(--danger); box-shadow: 0 0 15px rgba(231, 76, 60, 0.3); }
+        .btn-juri.offline .juri-status { color: var(--danger); }
+        .btn-juri.offline .juri-status::before { background: var(--danger); }
+        
+        /* State ONLINE (HIJAU) -> DIPAKAI/TERKUNCI */
+        .btn-juri.online { 
+            opacity: 0.7; 
+            pointer-events: none; 
+        }
+        .btn-juri.online img { border-color: var(--success); filter: grayscale(80%); }
+        .btn-juri.online .juri-status { color: var(--success); }
+        .btn-juri.online .juri-status::before { background: var(--success); }
+
+        
+        /* =========================================
+           UI PANEL SCORING JURI
+        ========================================= */
+        #screen-scoring { padding: 5px; }
+
+        .header-info {
+            background: white;
+            border-radius: 8px;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 5px;
+            flex-shrink: 0;
+        }
+        .identity { display: flex; align-items: center; gap: 8px; }
+        .identity img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--primary-color); object-fit: cover;}
+        .identity-text h3 { font-size: 0.85rem; font-weight: 800; margin: 0; line-height: 1; text-transform: uppercase;}
+        .identity-text p { font-size: 0.65rem; font-weight: 600; color: var(--text-sub); margin: 0; text-transform: uppercase;}
+        .timer-val { font-size: 1.4rem; font-weight: 800; font-family: monospace; color: var(--text-main); }
+        .nav-buttons button { background: #eee; border: none; border-radius: 5px; width: 30px; height: 30px; font-size: 0.9rem; margin-left: 5px; color: var(--danger); font-weight: 800;}
+        .nav-buttons button.fs { color: var(--primary-color); }
+
+        /* Score & Penalty Display Area */
+        .score-display-wrapper {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 5px;
+            flex-shrink: 0;
+        }
+        .score-box, .penalty-box {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            text-align: center;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .score-box { border: 2px solid var(--primary-color); }
+        .penalty-box { border: 2px solid var(--danger); }
+        .score-box span, .penalty-box span { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+        .score-box span { color: var(--primary-color); }
+        .penalty-box span { color: var(--danger); }
+        .score-box strong, .penalty-box strong { font-size: 2.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-main);}
+
+        /* Input Grid Area */
+        .input-area {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px; 
+            overflow-y: auto; 
+        }
+        .input-area::-webkit-scrollbar { width: 6px; }
+        .input-area::-webkit-scrollbar-track { background: #f0f4f8; border-radius: 4px; }
+        .input-area::-webkit-scrollbar-thumb { background: #c1c9d2; border-radius: 4px; }
+        .input-title { font-size: 0.7rem; font-weight: 800; color: var(--text-sub); text-align: center; margin: 0 0 2px 0; }
+        
+        .stamina-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px; 
+            flex-shrink: 0;
+        }
+        .ganda-grid { grid-template-columns: repeat(10, 1fr); }
+        
+        .btn-val {
+            background: #f8f9fa;
+            border: 1px solid #dcdde1;
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.1s;
+            min-height: 36px; 
+        }
+        .btn-val:active { transform: scale(0.9); }
+        .btn-val.active { background: var(--success); color: white; border-color: var(--success); box-shadow: inset 0 0 5px rgba(0,0,0,0.2);}
+
+        /* Action Buttons Area */
+        .action-area {
+            display: flex;
+            gap: 12px;
+            height: 130px; 
+            flex-shrink: 0;
+            margin-top: 8px;
+            padding-bottom: 5px;
+        }
+        .btn-action {
+            flex: 1;
+            border: none;
+            border-radius: 16px; 
+            color: white;
+            font-weight: 900;
+            font-size: 1.35rem; 
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.25); 
+            transition: 0.1s;
+            cursor: pointer;
+        }
+        .btn-action:active { transform: translateY(8px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+        .btn-action i { font-size: 2.2rem; } 
+        
+        .btn-wrong { background: var(--danger); }
+        .btn-next { background: var(--warning); color: #333; }
+
+        .btn-action:disabled {
+            background: #bdc3c7 !important;
+            color: #7f8c8d !important;
+            box-shadow: none !important;
+            transform: translateY(0) !important;
+            pointer-events: none;
+            opacity: 0.6;
+            filter: grayscale(100%);
+        }
+
+        .jurus-counter {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 16px;
+            padding: 0 25px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .jurus-counter span { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--text-sub);}
+        .jurus-counter strong { font-size: 2.8rem; font-weight: 900; line-height: 1;}
+
+        /* Media Query Khusus Layar Kecil (Landscape HP) */
+        @media screen and (max-height: 450px) {
+            /* Responsif Selection Screen (Frameless & Rapi) */
+            .title-select { font-size: 1.2rem; margin-bottom: 0px; }
+            .subtitle-select { display: none; } /* Disembunyikan agar hemat ruang */
+            .mode-toggle { margin-bottom: 10px; max-width: 350px; }
+            .btn-mode { padding: 6px; font-size: 0.7rem; }
+            .juri-grid { gap: 8px; max-width: 750px; }
+            .btn-juri { padding: 2px; }
+            .btn-juri img { width: 55px; height: 55px; margin-bottom: 4px; border-width: 2px; }
+            .btn-juri h3 { font-size: 0.85rem; margin-bottom: 4px; }
+            .juri-status { font-size: 0.55rem; padding: 2px 8px; }
+
+            /* Responsif Scoring Panel */
+            .score-box strong, .penalty-box strong { font-size: 1.8rem; } 
+            .input-area { gap: 6px; padding: 6px 8px; }
+            .btn-val { font-size: 0.65rem; min-height: 32px; }
+            .action-area { height: 110px; margin-top: 5px; gap: 8px; padding-bottom: 2px;} 
+            .btn-action { font-size: 1.2rem; border-radius: 12px; box-shadow: 0 6px 0 rgba(0,0,0,0.25); }
+            .btn-action:active { transform: translateY(6px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+            .btn-action i { font-size: 1.8rem; }
+            .jurus-counter { padding: 0 20px; border-radius: 12px; }
+            .jurus-counter strong { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. SCREEN SELEKSI JURI -->
+    <div id="screen-selection" class="screen active">
+        <div class="selection-container">
+            <h1 class="title-select">Panel Juri TGR</h1>
+            <p class="subtitle-select">Silakan Pilih Posisi Tugas Anda</p>
+            
+            <div class="juri-grid" id="selection-grid">
+                <!-- Grid Digenerate oleh JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. SCREEN SCORING JURI -->
+    <div id="screen-scoring" class="screen">
+        
+        <!-- Header Identitas & Timer -->
+        <div class="header-info">
+            <div class="identity">
+                <img id="j-avatar" src="https://iili.io/CShnhS2.png" alt="Avatar">
+                <div class="identity-text">
+                    <h3 id="j-name">NAMA PESERTA</h3>
+                    <p id="j-detail">KONTINGEN | PARTAI -</p>
+                </div>
+            </div>
+            
+            <div class="timer-val" id="j-timer">00:00.00</div>
+            
+            <div class="nav-buttons">
+                <button class="fs" onclick="toggleFullscreen()"><i class="fas fa-expand"></i></button>
+                <button onclick="logoutJuri()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+
+        <!-- Score & Penalty Display (Mode Tunggal) -->
+        <div class="score-display-wrapper" id="ui-score-wrapper">
+            <div class="score-box">
+                <span id="label-juri-pos">SCORING JURI -</span>
+                <strong id="j-live-score">9.90</strong>
+            </div>
+            <div class="penalty-box" id="ui-penalty-box">
+                <span>PENALTY</span>
+                <strong id="j-penalty-val">0.00</strong>
+            </div>
+        </div>
+
+        <!-- Input Area Tunggal -->
+        <div class="input-area" id="ui-mode-tunggal">
+            <p class="input-title">KEBENARAN JURUS (STAMINA)</p>
+            <div class="stamina-grid" id="grid-tunggal"></div>
+        </div>
+
+        <!-- Input Area Ganda -->
+        <div class="input-area" id="ui-mode-ganda" style="display: none;">
+            <p class="input-title">KEKAYAAN GERAK</p>
+            <div class="stamina-grid ganda-grid" id="grid-kekayaan"></div>
+            
+            <p class="input-title">KEBENARAN</p>
+            <div class="stamina-grid ganda-grid" id="grid-kebenaran"></div>
+            
+            <p class="input-title">STAMINA</p>
+            <div class="stamina-grid ganda-grid" id="grid-stamina"></div>
+        </div>
+
+        <!-- Action Buttons (Bawah) -->
+        <div class="action-area" id="ui-action-area">
+            <button class="btn-action btn-wrong" onclick="addWrongMove()">
+                <i class="fas fa-circle-xmark"></i> WRONG MOVE
+            </button>
+            <div class="jurus-counter">
+                <span>JURUS</span>
+                <strong id="j-jurus-val">1</strong>
+            </div>
+            <button id="btn-next" class="btn-action btn-next" onclick="nextJurus()">
+                <i class="fas fa-forward-step"></i> NEXT MOVE
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Audio Effect -->
+    <audio id="snd-hit" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
+
+<script>
+    // ==========================================
+    // KONFIGURASI FIREBASE
+    // ==========================================
+    const firebaseConfig = {
+  apiKey: "AIzaSyDZzZ957sLxMLcQQ2v3f3S2G4LbnUOyiyA",
+  authDomain: "tgr-main-silat.firebaseapp.com",
+  databaseURL: "https://tgr-main-silat-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tgr-main-silat",
+  storageBucket: "tgr-main-silat.firebasestorage.app",
+  messagingSenderId: "1099485902483",
+  appId: "1:1099485902483:web:5dc50a8e3d86eeef6abf66"
+};
+
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ==========================================
+    // STATE & VARIABEL GLOBAL
+    // ==========================================
+    let activeJuriId = null;
+    let currentMode = 'tunggal';
+    let juriStatusData = {};
+    let activeMatchInfo = {};
+    
+    // Nilai Lokal
+    let valWrongCount = 0;
+    let valJurus = 1;
+    let valGanda = { kekayaan: 0, kebenaran: 0, stamina: 0 };
+    let valTunggalStamina = 0;
+
+    // Timer
+    let elapsedTime = 0;
+    let timerInterval;
+
+    // ==========================================
+    // INIT UI & GRID GENERATOR
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", () => {
+        generateSelectionGrid();
+        generateInputGrids();
+        
+        // Listeners Firebase
+        db.ref('juriStatus').on('value', snap => {
+            juriStatusData = snap.val() || {};
+            updateSelectionGrid();
+            
+            // Forced logout dari dewan
+            if(activeJuriId && juriStatusData['juri'+activeJuriId] !== true) {
+                forceLogout();
+            }
+        });
+
+        db.ref('activeMatch').on('value', snap => {
+            activeMatchInfo = snap.val() || {};
+            
+            // Otomatis menyesuaikan mode berdasarkan input kategori dari operator/sekretaris
+            let kategoriMode = (activeMatchInfo.kategori || '').toLowerCase();
+            if(kategoriMode.includes('ganda') || kategoriMode.includes('solo kreatif')) {
+                currentMode = 'ganda';
+            } else {
+                currentMode = 'tunggal';
+            }
+
+            if(activeJuriId) {
+                updateHeaderInfo();
+                applyDataToUI();
+            }
+        });
+
+        db.ref('timer').on('value', snap => {
+            const val = snap.val();
+            if(val) {
+                elapsedTime = val.elapsedTime;
+                updateTimerDisplay(elapsedTime);
+                if(val.isRunning) {
+                    if(!timerInterval) {
+                        let startTime = Date.now() - elapsedTime;
+                        timerInterval = setInterval(() => {
+                            elapsedTime = Date.now() - startTime;
+                            updateTimerDisplay(elapsedTime);
+                        }, 10);
+                    }
+                } else {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+        });
+    });
+
+    // Pembuatan Grid Selection (Bergambar & Frameless)
+    function generateSelectionGrid() {
+        const grid = document.getElementById('selection-grid');
+        let html = '';
+        for(let i=1; i<=10; i++) {
+            html += `<div class="btn-juri offline" id="btn-juri-${i}" onclick="loginJuri(${i})">
+                        <img src="https://iili.io/CShnhS2.png" alt="Avatar Juri">
+                        <h3>JURI ${i}</h3>
+                        <div class="juri-status" id="status-badge-${i}">OFFLINE</div>
+                     </div>`;
+        }
+        grid.innerHTML = html;
+    }
+
+    function generateInputGrids() {
+        // Tunggal
+        let htmlT = '';
+        for(let i=1; i<=10; i++) {
+            htmlT += `<div class="btn-val" onclick="clickTunggal(this, ${(i/100).toFixed(2)})">${(i/100).toFixed(2)}</div>`;
+        }
+        document.getElementById('grid-tunggal').innerHTML = htmlT;
+
+        // Ganda (3 Baris: Kekayaan, Kebenaran, Stamina)
+        let htmlG = '';
+        for(let i=1; i<=30; i++) {
+            htmlG += `<div class="btn-val" onclick="clickGanda(this, ${(i/100).toFixed(2)}, 'type_placeholder')">${(i/100).toFixed(2)}</div>`;
+        }
+        document.getElementById('grid-kekayaan').innerHTML = htmlG.replace(/type_placeholder/g, 'kekayaan');
+        document.getElementById('grid-kebenaran').innerHTML = htmlG.replace(/type_placeholder/g, 'kebenaran');
+        document.getElementById('grid-stamina').innerHTML = htmlG.replace(/type_placeholder/g, 'stamina');
+    }
+
+    function updateSelectionGrid() {
+        for(let i=1; i<=10; i++) {
+            const btn = document.getElementById('btn-juri-'+i);
+            const badge = document.getElementById('status-badge-'+i);
+            if(btn && badge) {
+                if(juriStatusData['juri'+i] === true) {
+                    btn.classList.add('online');
+                    btn.classList.remove('offline');
+                    badge.innerText = 'ONLINE';
+                } else {
+                    btn.classList.remove('online');
+                    btn.classList.add('offline');
+                    badge.innerText = 'OFFLINE';
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // LOGIC JURI (LOGIN, LOGOUT, FULLSCREEN)
+    // ==========================================
+    function loginJuri(id) {
+        if(juriStatusData['juri'+id] === true) {
+            alert("⚠️ JURI SEDANG AKTIF/ONLINE DI PERANGKAT LAIN.");
+            return;
+        }
+
+        activeJuriId = id;
+        db.ref('juriStatus/juri'+id).set(true);
+        document.getElementById('label-juri-pos').innerText = "SCORING JURI " + id;
+        
+        requestFullscreenLock();
+
+        // Ambil data nilai terkahir jika ada
+        db.ref('scores/juri'+id).once('value').then(snap => {
+            const data = snap.val() || {};
+            valWrongCount = Math.round((data.penalty || 0) / 0.01);
+            valJurus = data.jurus || 1;
+            valTunggalStamina = data.stamina || 0;
+            valGanda.kekayaan = data.kekayaan || 0;
+            valGanda.kebenaran = data.kebenaran || 0;
+            valGanda.stamina = data.stamina || 0;
+
+            applyDataToUI();
+            updateHeaderInfo();
+            
+            // Switch Screen
+            document.getElementById('screen-selection').classList.remove('active');
+            document.getElementById('screen-scoring').classList.add('active');
+        });
+    }
+
+    function logoutJuri() {
+        if(activeJuriId) {
+            db.ref('juriStatus/juri'+activeJuriId).set(false);
+            activeJuriId = null;
+        }
+        exitFullscreen();
+        document.getElementById('screen-scoring').classList.remove('active');
+        document.getElementById('screen-selection').classList.add('active');
+    }
+
+    function forceLogout() {
+        activeJuriId = null;
+        exitFullscreen();
+        document.getElementById('screen-scoring').classList.remove('active');
+        document.getElementById('screen-selection').classList.add('active');
+    }
+
+    function requestFullscreenLock() {
+        let de = document.documentElement;
+        if(de.requestFullscreen) { de.requestFullscreen().then(()=>{ lockLandscape(); }).catch(()=>{}); }
+        else if(de.webkitRequestFullscreen) { de.webkitRequestFullscreen(); lockLandscape(); }
+    }
+    
+    function toggleFullscreen() {
+        if(!document.fullscreenElement) requestFullscreenLock();
+        else exitFullscreen();
+    }
+
+    function exitFullscreen() {
+        if(document.exitFullscreen && document.fullscreenElement) document.exitFullscreen();
+        if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    }
+
+    function lockLandscape() {
+        if(screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(()=>{});
+        }
+    }
+
+    function updateHeaderInfo() {
+        const i = activeMatchInfo;
+        document.getElementById('j-name').innerText = i.name || "NAMA PESERTA";
+        document.getElementById('j-detail').innerText = `${i.cont || '-'} | PARTAI ${i.partai || '-'} | ${i.kategori || '-'}`;
+        document.getElementById('j-avatar').src = i.img || "https://iili.io/CShnhS2.png";
+    }
+
+    function updateTimerDisplay(ms) {
+        let m = Math.floor(ms / 60000);
+        let s = Math.floor((ms % 60000) / 1000);
+        let d = Math.floor((ms % 1000) / 10);
+        document.getElementById('j-timer').innerText = 
+            (m < 10 ? "0"+m : m) + ":" + (s < 10 ? "0"+s : s) + "." + (d < 10 ? "0"+d : d);
+    }
+
+    // ==========================================
+    // LOGIC PENILAIAN
+    // ==========================================
+    function checkMaxJurusStatus() {
+        const btnNext = document.getElementById('btn-next');
+        if (valJurus >= 14) {
+            btnNext.disabled = true; // Matikan tombol secara fungsional & visual
+        } else {
+            btnNext.disabled = false;
+        }
+    }
+
+    function applyDataToUI() {
+        document.getElementById('j-penalty-val').innerText = (valWrongCount * 0.01).toFixed(2);
+        document.getElementById('j-jurus-val').innerText = valJurus;
+        
+        checkMaxJurusStatus(); // Cek status maksimal tiap data di refresh
+
+        if(currentMode === 'tunggal') {
+            document.getElementById('ui-score-wrapper').style.display = 'flex'; // TAMPILKAN KOTAK SKOR
+            document.getElementById('ui-mode-tunggal').style.display = 'flex';
+            document.getElementById('ui-mode-ganda').style.display = 'none';
+            document.getElementById('ui-action-area').style.display = 'flex';
+            
+            document.querySelectorAll('#grid-tunggal .btn-val').forEach(el => {
+                el.classList.remove('active');
+                if(parseFloat(el.innerText) === valTunggalStamina) el.classList.add('active');
+            });
+        } else {
+            document.getElementById('ui-score-wrapper').style.display = 'none'; // HAPUS/SEMBUNYIKAN KOTAK SKOR DI GANDA
+            document.getElementById('ui-mode-tunggal').style.display = 'none';
+            document.getElementById('ui-mode-ganda').style.display = 'flex';
+            document.getElementById('ui-action-area').style.display = 'none';
+
+            ['kekayaan', 'kebenaran', 'stamina'].forEach(type => {
+                document.querySelectorAll(`#grid-${type} .btn-val`).forEach(el => {
+                    el.classList.remove('active');
+                    if(parseFloat(el.innerText) === valGanda[type]) el.classList.add('active');
+                });
+            });
+        }
+        calculateAndPush();
+    }
+
+    function clickTunggal(el, val) {
+        const wasActive = el.classList.contains('active');
+        document.querySelectorAll('#grid-tunggal .btn-val').forEach(i => i.classList.remove('active'));
+        if(!wasActive) { el.classList.add('active'); valTunggalStamina = parseFloat(val); }
+        else { valTunggalStamina = 0; }
+        calculateAndPush();
+    }
+
+    function clickGanda(el, val, type) {
+        const wasActive = el.classList.contains('active');
+        document.querySelectorAll(`#grid-${type} .btn-val`).forEach(i => i.classList.remove('active'));
+        if(!wasActive) { el.classList.add('active'); valGanda[type] = parseFloat(val); }
+        else { valGanda[type] = 0; }
+        calculateAndPush();
+    }
+
+    function addWrongMove() {
+        valWrongCount++;
+        document.getElementById('j-penalty-val').innerText = (valWrongCount * 0.01).toFixed(2);
+        calculateAndPush();
+    }
+
+    function nextJurus() {
+        if(valJurus < 14) {
+            valJurus++;
+            document.getElementById('j-jurus-val').innerText = valJurus;
+            checkMaxJurusStatus(); // Update tombol agar mati di angka 14
+            calculateAndPush();
+        }
+    }
+
+    function calculateAndPush() {
+        if(!activeJuriId) return;
+        
+        let pen = valWrongCount * 0.01;
+        let score = 0;
+        let payload = { penalty: pen, jurus: valJurus };
+
+        if(currentMode === 'tunggal') {
+            score = 9.90 + valTunggalStamina - pen;
+            payload.score = score;
+            payload.stamina = valTunggalStamina;
+        } else {
+            score = 9.10 + valGanda.kekayaan + valGanda.kebenaran + valGanda.stamina - pen;
+            payload.score = score;
+            payload.kekayaan = valGanda.kekayaan;
+            payload.kebenaran = valGanda.kebenaran;
+            payload.stamina = valGanda.stamina;
+        }
+
+        document.getElementById('j-live-score').innerText = score.toFixed(2);
+        
+        // Push to Firebase
+        db.ref('scores/juri' + activeJuriId).update(payload);
+        
+        // Play Sound Effect
+        const snd = document.getElementById('snd-hit');
+        if(snd) { snd.currentTime = 0; snd.play().catch(()=>{}); }
+    }
+</script>
+</body>
+</html>
